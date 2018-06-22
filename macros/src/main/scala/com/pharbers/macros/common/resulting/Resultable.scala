@@ -24,7 +24,7 @@ object Resultable {
 
         val q"..$clsdef" =
         q"""
-            import com.pharbers.jsonapi.model.JsonApiObject.{JsObjectValue, NullValue, NumberValue, StringValue}
+            import com.pharbers.jsonapi.model.JsonApiObject.{JsArrayValue, JsObjectValue, NullValue, NumberValue, StringValue}
             import com.pharbers.jsonapi.model.{Attribute, Attributes, Links, RootObject}
             import com.pharbers.jsonapi.model.RootObject.{ResourceObject, ResourceObjects}
             import com.pharbers.macros.common.TestAnnotation
@@ -42,12 +42,23 @@ object Resultable {
                     val class_symbol = inst_mirror.symbol
                     val class_field = class_symbol.typeSignature.members.filter(p => p.isTerm && ! p.isMethod).toList
 
+                    val companion_symbol = class_symbol.companion.asModule
+                    val companion_mirror = mirror.reflectModule(companion_symbol)
+                    val companion_instance = mirror.reflect(companion_mirror.instance)
+
                     val opt = typeOf[Option[_]].typeSymbol
+                    val ltp = typeOf[List[_]].typeSymbol
                     def isConnectionInject(f : ru.Symbol) =
                         f.info.baseType(opt) != NoType &&
                             f.info.typeArgs.length == 1 &&
                             f.info.typeArgs.head.baseClasses.
-                                map(_.name.toString).contains("commonresult")
+                            map(_.name.toString).contains("commonresult")
+
+                    def isConnectionManyInject(f : ru.Symbol) =
+                        f.info.baseType(ltp) != NoType &&
+                            f.info.typeArgs.length == 1 &&
+                            f.info.typeArgs.head.baseClasses.
+                            map(_.name.toString).contains("commonresult")
 
                     val attrs =
                         class_field.map { f =>
@@ -57,7 +68,21 @@ object Resultable {
                             Attribute(f.name.toString,
                                 if (f.info =:= typeOf[String]) StringValue(attr_val.toString)
                                 else if (f.info <:< typeOf[Number]) NumberValue(BigDecimal(attr_val.asInstanceOf[Number].doubleValue))
-                                else if (isConnectionInject(f)) StringValue(f.name.toString.trim)
+                                else if (isConnectionInject(f) || isConnectionManyInject(f))  {
+                                    val companion_implicit =
+                                        companion_symbol.typeSignature.members.
+                                            find(p => p.name.toString == f.name.toString).
+                                            map (x => x).getOrElse(throw new Exception(""))
+
+                                    val compaion_field_mirror = companion_instance.reflectField(companion_implicit.asTerm)
+
+                                    attr_val match {
+                                        case Some(x) => JsObjectValue(asJsonApi(x)(compaion_field_mirror.get.asInstanceOf[Expandable[Any]]))
+                                        case Nil => NullValue
+                                        case lst : List[Any] => JsArrayValue(lst.map (x => JsObjectValue(asJsonApi(x)(compaion_field_mirror.get.asInstanceOf[Expandable[Any]]))))
+                                        case _ => ???
+                                    }
+                                }
                                 else NullValue)
                             }.filterNot(it => NullValue == it.value).asInstanceOf[Attributes]
 
