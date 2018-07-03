@@ -6,12 +6,12 @@ import scala.language.experimental.macros
 
 import scala.reflect.runtime.{universe => ru}
 
-@compileTimeOnly("调试的Annotation，为了实现从定义的类变成表达书树")
+@compileTimeOnly("调试的Annotation，为了实现从定义的类变成表达式树")
 class TestAnnotation extends StaticAnnotation {
-    def macroTransform(annottees : Any*) : Any = macro TestAnnotationMacro.impl
+    def macroTransform(annottees : Any*) : Any = macro TestAnnotation.impl
 }
 
-object TestAnnotationMacro {
+object TestAnnotation {
     def impl(c: whitebox.Context)(annottees: c.Expr[Any]*): c.Expr[Any] = {
         import c.universe._
         val inputs = annottees.map(_.tree).toList

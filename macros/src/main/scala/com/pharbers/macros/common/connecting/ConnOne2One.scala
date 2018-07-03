@@ -20,7 +20,7 @@ object ConnOne2One {
             case (param : TypeDef) :: (rest @ (_ :: _)) => ("type", param, rest)
             case _ => ("", EmptyTree, inputs)
         }
-//        println((s, annottee, expandees))
+        println((s, annottee, expandees))
         val outputs = expandees
 
         c.Expr[Any](Block(outputs, Literal(Constant(()))))

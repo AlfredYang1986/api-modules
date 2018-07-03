@@ -1,9 +1,8 @@
 package com.pharbers.macros.common.connecting
 
-import scala.annotation.{StaticAnnotation, compileTimeOnly}
 import scala.reflect.macros.whitebox
 import scala.language.experimental.macros
-import scala.reflect.runtime.{universe => ru}
+import scala.annotation.{StaticAnnotation, compileTimeOnly}
 
 @compileTimeOnly("enable macro paradis to expand macro annotations")
 class ConnectionsMacro extends StaticAnnotation {
